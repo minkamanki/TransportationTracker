@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import authService from "./services/authService";
+import AuthService from "./services/authService";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -18,7 +18,7 @@ function Login() {
     e.preventDefault();
 
     try {
-      const response = await authService.login(formData.username, formData.password);
+      const response = await AuthService.login(formData.username, formData.password);
       console.log(response);
     } catch (error) {
       console.error(error);
