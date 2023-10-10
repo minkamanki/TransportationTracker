@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 
 function RegisterPage() {
-  const API_URL = "http://localhost:3000/";
+  const API_URL = "http://localhost:8000";
   const [formData, setFormData] = useState({
     username: "",
     password: "",

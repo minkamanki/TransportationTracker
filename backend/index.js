@@ -10,9 +10,11 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(cors({
-  origin: "http://localhost:3000",
-}));
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+  })
+);
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URL, {
@@ -29,7 +31,9 @@ const User = mongoose.model("User", UserSchema);
 
 const TransportationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  data: String,
+  vehicle: String,
+  amount: Number,
+  measurement: String,
 });
 
 const Transportation = mongoose.model("Transportation", TransportationSchema);
@@ -77,7 +81,9 @@ app.post("/login", async (req, res) => {
     }
 
     // Create a JWT token
-    const token = jwt.sign({ username }, process.env.SECRET_KEY, { expiresIn: "1h" });
+    const token = jwt.sign({ username }, process.env.SECRET_KEY, {
+      expiresIn: "1h",
+    });
 
     res.status(200).json({ token });
   } catch (error) {
@@ -107,61 +113,6 @@ app.get("/profile", async (req, res) => {
   }
 });
 
-// Add a new route to fetch transportation data
-app.get("/transportation", async (req, res) => {
-  try {
-    // Get transportation data for the currently logged-in user
-    const token = req.headers.authorization;
-    const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
-    const username = decodedToken.username;
-
-    const user = await User.findOne({ username });
-
-    if (!user) {
-      return res.status(401).json({ error: "User not found" });
-    }
-
-    const transportationData = await Transportation.find({ userId: user._id });
-
-    res.status(200).json(transportationData);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Add a new route to post transportation data
-app.post("/transportation", async (req, res) => {
-  try {
-    // Get the user based on the token
-    const token = req.headers.authorization;
-    const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
-    const username = decodedToken.username;
-
-    const user = await User.findOne({ username });
-
-    if (!user) {
-      return res.status(401).json({ error: "User not found" });
-    }
-
-    const { newData } = req.body;
-
-    // Create a new transportation data entry
-    const transportationItem = new Transportation({
-      userId: user._id,
-      data: newData,
-    });
-
-    await transportationItem.save();
-
-    res.status(201).json({ message: "Transportation data added successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-
 app.get("/user", async (req, res) => {
   try {
     // Get the token from the request headers
@@ -185,6 +136,31 @@ app.get("/user", async (req, res) => {
     };
 
     res.status(200).json(userData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/submit-transportation", async (req, res) => {
+  try {
+    // Extract the form data from the request body
+    const { vehicle, amount, measurement } = req.body;
+
+    // You can optionally verify the JWT token here if authentication is required
+
+    // Create a new instance of the Transportation model and save it to the database
+    const transportation = new Transportation({
+      userId: req.user._id, // Assuming you have user information stored in req.user
+      vehicle,
+      amount,
+      measurement,
+    });
+
+    await transportation.save();
+
+    // Respond with a success message or other relevant response
+    res.status(201).json({ message: "Transportation data submitted successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });

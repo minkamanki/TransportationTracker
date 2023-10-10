@@ -15,7 +15,7 @@ function LoginPage() {
     password: "",
   });
   const [error, setError] = useState(""); 
-  const API_URL = "http://localhost:3000/";
+  const API_URL = "http://localhost:8000";
 
   const handleChange = (e) => {
     setFormData({
