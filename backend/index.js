@@ -30,7 +30,7 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.model("User", UserSchema);
 
 const TransportationSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   vehicle: String,
   amount: Number,
   measurement: String,
@@ -147,11 +147,26 @@ app.post("/submit-transportation", async (req, res) => {
     // Extract the form data from the request body
     const { vehicle, amount, measurement } = req.body;
 
-    // You can optionally verify the JWT token here if authentication is required
+    const token = req.headers.authorization?.split(" ")[1]; // Get the token from the Authorization header
 
-    // Create a new instance of the Transportation model and save it to the database
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Verify the JWT token and retrieve user information
+    const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
+    const { username } = decodedToken;
+
+    // Find the user based on the decoded username
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Create a new instance of the Transportation model with the user's ID
     const transportation = new Transportation({
-      userId: req.user._id, // Assuming you have user information stored in req.user
+      user: user._id, // Store the user's ID
       vehicle,
       amount,
       measurement,
@@ -160,13 +175,33 @@ app.post("/submit-transportation", async (req, res) => {
     await transportation.save();
 
     // Respond with a success message or other relevant response
-    res.status(201).json({ message: "Transportation data submitted successfully" });
+    res
+      .status(201)
+      .json({ message: "Transportation data submitted successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
+app.get("/transportations/:user", async (req, res) => {
+  const username = req.params.user; // Get the username from the URL parameter
+
+  try {
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const transportations = await Transportation.find({ user: user._id });
+
+    res.status(200).json(transportations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

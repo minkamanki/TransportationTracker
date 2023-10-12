@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { setAuthToken } from "./LoginPage";
 
 function ProfilePage() {
   const [userName, setUserName] = useState("");
-  const [userId, setUserId] = useState("");
   const token = localStorage.getItem("token");
   const API_URL = "http://localhost:8000";
   const [transportationData, setTransportationData] = useState([]);
@@ -23,37 +23,62 @@ function ProfilePage() {
         })
         .then((response) => {
           setUserName(response.data.username);
-          setUserId(response.data.id);
+          // After fetching the user's profile, fetch their transportation data
+          axios
+            .get(`${API_URL}/transportations/${response.data.username}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            })
+            .then((transportationResponse) => {
+              setTransportationData(transportationResponse.data);
+            })
+            .catch((transportationError) => {
+              console.error("Error fetching transportation data:", transportationError);
+            });
         })
         .catch((err) => {
+          localStorage.removeItem("token");
+          setAuthToken(null);
           // Handle errors, e.g., token expired or unauthorized
           console.error(err);
         });
     }
   }, [token]);
+  
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
+  
     const formData = {
       vehicle,
       amount,
       measurement,
     };
-
-    //REMOVE LATER
-    setTransportationData([...transportationData, formData]);
-
-    // Make a POST request to send the form data to the backend
+  
     axios
-      .post(`${API_URL}/submit-transportation`, {formData, userId}, {
+      .post(`${API_URL}/submit-transportation`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
       .then((response) => {
         console.log("Data submitted successfully:", response.data);
-
+  
+        // After successfully submitting the data, fetch the updated transportation data
+        axios
+          .get(`${API_URL}/transportations/${userName}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          .then((transportationResponse) => {
+            setTransportationData(transportationResponse.data);
+          })
+          .catch((transportationError) => {
+            console.error("Error fetching transportation data:", transportationError);
+          });
+  
         setVehicle("airplane");
         setAmount(0);
         setMeasurement("hours");
@@ -75,7 +100,9 @@ function ProfilePage() {
               <h3>Your Transportations:</h3>
               <ul>
                 {transportationData.map((dataItem, i) => (
-                  <li key={i}>{dataItem.vehicle} {dataItem.amount} {dataItem.measurement}</li>
+                  <li key={i}>
+                    {dataItem.vehicle} {dataItem.amount} {dataItem.measurement}
+                  </li>
                 ))}
               </ul>
             </div>
