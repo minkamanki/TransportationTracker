@@ -11,6 +11,7 @@ function ProfilePage() {
   const [amount, setAmount] = useState(0);
   const [measurement, setMeasurement] = useState("hours");
   const [error, setError] = useState(null);
+  const [totalCO2e, setTotalCO2e] = useState("");
 
   useEffect(() => {
     // Check if the user is authenticated (i.e., token exists)
@@ -25,13 +26,14 @@ function ProfilePage() {
           setUserName(response.data.username);
           // After fetching the user's profile, fetch their transportation data
           axios
-            .get(`${API_URL}/transportations/${response.data.username}`, {
+            .get(`${API_URL}/transportations`, {
               headers: {
                 Authorization: `Bearer ${token}`,
-              },
+              }
             })
             .then((transportationResponse) => {
-              setTransportationData(transportationResponse.data);
+              setTransportationData(transportationResponse.data.transportations);
+              setTotalCO2e(transportationResponse.data.co2eResult);
             })
             .catch((transportationError) => {
               console.error("Error fetching transportation data:", transportationError);
@@ -45,17 +47,17 @@ function ProfilePage() {
         });
     }
   }, [token]);
-  
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
-  
+
     const formData = {
       vehicle,
       amount,
       measurement,
     };
-  
+
     axios
       .post(`${API_URL}/submit-transportation`, formData, {
         headers: {
@@ -64,7 +66,7 @@ function ProfilePage() {
       })
       .then((response) => {
         console.log("Data submitted successfully:", response.data);
-  
+
         // After successfully submitting the data, fetch the updated transportation data
         axios
           .get(`${API_URL}/transportations/${userName}`, {
@@ -73,12 +75,13 @@ function ProfilePage() {
             },
           })
           .then((transportationResponse) => {
-            setTransportationData(transportationResponse.data);
+            setTransportationData(transportationResponse.data.transportations);
+            setTotalCO2e(transportationResponse.data.co2eResult);
           })
           .catch((transportationError) => {
             console.error("Error fetching transportation data:", transportationError);
           });
-  
+
         setVehicle("airplane");
         setAmount(0);
         setMeasurement("hours");
@@ -95,7 +98,10 @@ function ProfilePage() {
       {token && userName !== "" ? (
         <div>
           <h1>Welcome, {userName}!</h1>
-          {transportationData.length > 0 ? (
+          {totalCO2e !== "" &&
+            <h3>Your total emissions are: {totalCO2e}</h3>
+          }
+          {transportationData && transportationData.length > 0 ? (
             <div>
               <h3>Your Transportations:</h3>
               <ul>

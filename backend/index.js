@@ -186,8 +186,17 @@ app.post("/submit-transportation", async (req, res) => {
   }
 });
 
-app.get("/transportations/:user", async (req, res) => {
-  const username = req.params.user; // Get the username from the URL parameter
+app.get("/transportations", async (req, res) => {
+  
+  const token = req.headers.authorization?.split(" ")[1]; // Get the token from the Authorization header
+
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // Verify the JWT token and retrieve user information
+  const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
+  const { username } = decodedToken;
 
   try {
     const user = await User.findOne({ username });
@@ -197,8 +206,10 @@ app.get("/transportations/:user", async (req, res) => {
     }
 
     const transportations = await Transportation.find({ user: user._id });
+    const co2eResult = calculateTotalCO2e(transportations);
+    console.log("Total", co2eResult)
+    res.status(200).json({ transportations, co2eResult });
 
-    res.status(200).json(transportations);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
@@ -208,3 +219,50 @@ app.get("/transportations/:user", async (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+
+// Function to calculate CO2e for an array of transportation data
+function calculateTotalCO2e(dataArray) {
+  const co2eFactors = {
+    airplane: 0.200,
+    bike: 0,
+    boat: 0.150,
+    bus: 0.040,
+    car: 0.280,
+    helicopter: 0.420,
+    motorcycle: 0.080,
+    scooter: 0.060,
+    subway: 0.020,
+    train: 0.035,
+    tram: 0.020,
+    truck: 0.150,
+    van: 0.140,
+  };
+  const measurementFactors = {
+    hours: 1,
+    minutes: 1 / 60,
+    km: 1,
+    m: 0.001,
+    miles: 0.621371,
+  };
+
+  // Total CO2e
+  let totalCO2e = 0;
+
+  // Iterate through the array and calculate CO2e for each entry
+  dataArray.forEach((entry) => {
+    // Validate entry
+    if (!co2eFactors.hasOwnProperty(entry.vehicle) || isNaN(entry.amount) || !entry.measurement) {
+      console.log(`Invalid entry with id ${entry.id}`);
+      return;
+    }
+
+    const co2 = co2eFactors[entry.vehicle] * entry.amount * measurementFactors[entry.measurement];
+    if (co2 > 0) {
+      totalCO2e += co2
+    }
+
+  });
+
+  return `${totalCO2e.toFixed(2)} kg CO2e`;
+}
